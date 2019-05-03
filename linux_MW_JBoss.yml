@@ -1,0 +1,54 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  vars_files:
+    - roles/common/vars/linux_common.yml
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux }
+  - { role: chkArtifactDep }
+
+  tasks:
+    - block:
+
+      - name: Setup download temp folder
+        import_role:
+          name: linuxMWTempDir
+        tags: always
+
+      - name: Download artifact from Artifactory
+        import_role:
+          name: linuxDownloadUniv
+        vars:
+          file_patterns: "*.ear,*.war"
+        tags: always
+
+      - name: JBOSS MW deployment
+        import_role:
+          name: linuxMWCmd
+          tasks_from: MWJBoss
+        tags: always
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+        tags: always
+
+      always:
+      - name: Remove temp directory after deployment     
+        import_role:
+          name: linuxMWTempDir
+          tasks_from: remove_temp_dir.yml
+        tags: always
+
+      # conditional for block above
+      when: dep_env not in deployed or dep_override
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
