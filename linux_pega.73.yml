@@ -1,0 +1,104 @@
+---
+
+#    Required input variables:                                                                       #
+#    -------------------------                                                                       #
+#    app_name = hard coded in playbook for now.                                                      #
+#    extra_vars needs app_name and dep_env and they need to match with the mwpassword_dictionary                                                                                                #          
+#    pega_env = put in tower template (only SE, UAT or PROD)                                         #                                              #
+#    deploy_downloads_dir: <staging directory path>                                                  #
+#    pega_home: <path to prpcServiceUtils_73>                                                        #
+#    java_home: /efs/dist/oracle/jdk/1.8/exec                                                        #
+#    url: <pega target deployment environment url>                                                   #
+#    username: HorizonDeployUser                                                                     #
+#    password is encrypted using ansible vault and stored in cd repo[secrets/{{ Env }}/vault.yml]    #
+#   User input - extra_vars needs app_name and dep_env and they need to match with the mwpassword_dictionary#
+
+
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  vars_files:
+    - roles/common/vars/linux_pega_common.yml
+    - roles/LinuxPegaFiles/vars/etascPegaSecrets.yml
+
+  vars:
+    - app_name: "RISE"
+    - username: "HorizonDeployUser"
+    - properties_file: "{{ deploy_downloads_dir}}/prpcServiceUtils.properties"
+      
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux, is_mw: "false" }
+  - { role: chkArtifactDep }
+
+  tasks:
+
+    - block:
+      - name: Setup download temp folder
+        import_role:
+          name: linux_special_tech_temp_dir
+        tags: always
+
+      - name: Download artifact from Artifactory
+        import_role:
+          name: linuxDownload
+        tags: always
+
+      - name: Unarchive artifact to destination directory
+        import_role:
+          name: linuxUnarchive
+        tags: always
+      
+      - name: Get zip file name
+        shell: ls {{ deploy_downloads_dir }} | grep .zip || true
+        register: zipFileName
+      
+      - name: Fail if zipfile is missing from artifact
+        fail: 
+          msg: "Can't find zip file in the downloaded artifacts"
+        when: zipFileName.stdout == "" 	  
+      
+      - name: Copy properties file from pega client
+        copy:
+          src: "{{ pega_home }}/scripts/utils/prpcServiceUtils.properties"
+          dest: "{{ deploy_downloads_dir }}"
+          remote_src: yes		
+
+      - name: Replace the variables with environment specific values in properties file
+  #     no_log is set to true to not to show the password in the deployment log.	  
+        no_log: true	  
+        replace:
+         path: '{{ properties_file }}'
+         regexp: '^{{ item.property }}.*$'
+         replace: "{{ item.value }}"
+        with_items:
+         - {property: 'pega.rest.server.url',value: 'pega.rest.server.url={{ url }}'}
+         - {property: 'pega.rest.username',value: 'pega.rest.username={{ username }}'}
+         - {property: 'pega.rest.password',value: 'pega.rest.password={{ mwpassword_dictionary.get(app_name).get(pega_env) }}'}
+         - {property: 'import.archive.path',value: 'import.archive.path={{ deploy_downloads_dir }}/{{ zipFileName.stdout }}'}		
+     
+      - name: Deploy      
+        shell: "{{ pega_home }}/scripts/utils/prpcServiceUtils.sh import --propFile {{ properties_file }}"
+        environment:
+          java_home: '{{ java_home }}'
+
+      - name: Clean temp directory after deployment
+        import_role:
+          name: linux_special_tech_temp_dir
+          tasks_from: stageDir
+        vars:
+          stage_dir_state: absent
+        tags: always
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+        tags: always
+      when: dep_env not in deployed or dep_override
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
