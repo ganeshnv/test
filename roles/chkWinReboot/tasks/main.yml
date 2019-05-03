@@ -1,0 +1,11 @@
+---
+- name: Check Registry for Reboot
+  win_reg_stat:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager
+    name: PendingFileRenameOperations
+  register: pending_file_rename_operations
+ 
+  
+- name: Reboot Server
+  win_reboot:
+  when: pending_file_rename_operations.exists
