@@ -1,0 +1,7 @@
+---
+env_rest_api: https://celestial.server.com/api/getappconfigs
+art_rest_api: https://artifacts.server.com/artifactory/api/storage
+art_detail_api: https://celestialapp.server.com/api/getartdetails
+dep_prop_api: https://celestialapp.server.com/api/getinventorygroup
+dep_override: false
+x_origin: https://celestial.server.com
