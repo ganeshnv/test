@@ -1,0 +1,31 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux, is_mw: "false" }
+
+  tasks:
+      
+    - name: Optional Pre Command
+      shell: "{{ pre_cmd }}"
+      register: preout
+      when: pre_cmd is defined
+
+    - name: Main Operation Command
+      shell: "{{ main_cmd }}"
+      register: mainout
+      when: main_cmd is defined
+      
+    - name: Optional Post Command
+      shell: "{{ post_cmd }}"
+      register: postout
+      when: post_cmd is defined
+    
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
