@@ -1,0 +1,72 @@
+---
+- name: Setting up MW Ansible setup.
+  hosts:  "{{ ansible_inventory_group }}"
+
+  tasks:
+
+  - stat:
+      path: "/hosting"
+    register: hosting_loc_stats
+
+  - name: Open up /hosting permissions to 755
+    shell: "pbrun pbmwansb {{ hosting_loc_stats.stat.pw_name }}=open_hosting"
+  
+  - stat:
+      path: "/hosting/configs"
+    register: temp_loc_stats
+
+  - name: Remove the check file which is used to determine the action, if present
+    file:
+      path: "/tmp/runMWCmd_setup"
+      state: absent
+
+  - name: Create the check file which is used to determine the action
+    file:
+      path: "/tmp/runMWCmd_setup"
+      state: touch
+      mode: 0755
+
+  - name: Update the action file with the content for displaying the version of runMWCmd package on local as well as remote
+    lineinfile:
+      path: "/tmp/runMWCmd_setup"
+      line: 'display_package_version'
+    when: ACTION == 'display runMW package version'
+
+  - name: Update the action file with the content for refreshing the version of runMWCmd package, and no update to runMW prop file
+    lineinfile:
+      path: "/tmp/runMWCmd_setup"
+      line: 'refresh_package'
+    when: ACTION == 'refresh runMW package'
+
+  - name: Update the action file with the content for generating property file along with refreshing runMW package
+    lineinfile:
+      path: "/tmp/runMWCmd_setup"
+      line: 'refresh_package_and_create_propFile'
+    when: ACTION == 'refresh package and create runMW prop file'
+
+  - name: Update the action file with the content for rolling back the runMWCmd package to previous version
+    lineinfile:
+      path: "/tmp/runMWCmd_setup"
+      line: 'rollback_package'
+    when: ACTION == 'rollback runMW package'
+
+  - name: Update the action file with the content for generating only the property file without a refresh of runMWCmd package
+    lineinfile:
+      path: "/tmp/runMWCmd_setup"
+      line: 'regen_propFile'
+    when: ACTION == 'regenerate runMW prop file'
+
+#  - name: Update the action file with the content for rolling back only the property file
+#    lineinfile:
+#      path: "/tmp/action"
+#      line: 'rollback_propFile'
+#    when: ACTION == 'rollback runMW prop file'
+
+  - name: Ansible setup and RunMWCmd framework on the target server
+    shell: "pbrun pbmwansb {{ temp_loc_stats.stat.pw_name }}=setup_runmwcmd"
+
+#  always:
+  - name: Remove the check file which is used to determine the action
+    file:
+      path: "/tmp/runMWCmd_setup"
+      state: absent
