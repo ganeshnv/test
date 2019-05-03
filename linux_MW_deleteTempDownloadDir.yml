@@ -1,0 +1,29 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ ansible_inventory_group }}"
+  vars_files:
+    - roles/common/vars/linux_common.yml
+
+  pre_tasks:
+
+  tasks:
+  - stat: 
+      path: "/hosting/configs"
+    register: mw_loc_stats 
+
+  - name: Update mw_id to Match Owner of /hosting/configs
+    set_fact:
+      mw_id: "{{ mw_loc_stats.stat.pw_name }}"
+    when: mw_loc_stats.stat.isdir is defined and mw_loc_stats.stat.isdir
+    
+  - name: Remove temp directory after deployment
+    import_role:
+      name: linuxMWTempDir
+      tasks_from: remove_temp_dir.yml
+    tags: always
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
