@@ -1,0 +1,31 @@
+---
+
+- name: Websphere MW deployment - STOP cluster(s)
+  include_tasks: mw_cluster.yml
+  vars:
+    mw_cluster_action: STOP
+  #when: override_cluster_restart is not defined or override_cluster_restart != "true"
+  when: restart_cluster is not defined or restart_cluster != "false"
+
+- name: Websphere MW deployment - UNINSTALL
+  include_tasks: mw_install.yml
+  vars:
+    mw_install_action: UNINSTALL
+
+- name: Websphere MW deployment - INSTALL
+  include_tasks: mw_install.yml
+  vars:
+    mw_install_action: INSTALL
+
+- name: websphere MW deployment - SYNC
+  include_tasks: mw_sync.yml
+
+- name: Execute commands specified in survey variable
+  include_tasks: linux_ansible_scripts.yml
+
+- name: Websphere MW deployment - START cluster(s)
+  include_tasks: mw_cluster.yml
+  vars:
+    mw_cluster_action: START
+  #when: override_cluster_restart is not defined or override_cluster_restart != "true"
+  when: restart_cluster is not defined or restart_cluster != "false"
