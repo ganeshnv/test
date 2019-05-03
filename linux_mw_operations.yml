@@ -1,0 +1,35 @@
+---
+- name: Performing a {{ operation }} on {{ mw_target }} in {{ dep_env }}
+  hosts: "{{ spk }}_{{ component_name }}_{{ dep_env }}_{{ server_type }}"
+
+  tasks:
+
+  - stat:
+      path: "/hosting"
+    register: hosting_loc_stats
+
+  - name: Open up /hosting permissions to 755
+    shell: "pbrun pbmwansb {{ hosting_loc_stats.stat.pw_name }}=open_hosting"
+    failed_when: false
+    
+  - stat:
+      path: "/hosting/configs"
+    register: mw_loc_stats
+
+  - name: Set Other Facts
+    set_fact:
+      run_mw_cmd: "pbrun pbmwansb {{ mw_loc_stats.stat.pw_name }}=/hosting/bin/ansible/runMWCmd"
+    
+  - name: Stop/Start the Target
+    shell: "{{ run_mw_cmd }} {{ operation }}_{{ mw_target }}"
+    when: operation == 'STOP' or operation == 'START'
+
+  - name: Restart the Target
+    shell: "{{ run_mw_cmd }} STOP_{{ mw_target }}; {{ run_mw_cmd }} START_{{ mw_target }}"
+    when: operation == 'RESTART'   
+
+  post_tasks:
+  - name: Clear facts
+    import_role:
+      name: clearFacts
+    tags: always
