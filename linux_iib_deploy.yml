@@ -1,0 +1,96 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux, is_mw: "false" }
+  - { role: chkArtifactDep }
+
+  vars:
+  - iib_main_install_cmd_ready: "false"
+    ### REQUIRED VARIABLES for IIB Deploy Playbook ###
+    # iib_main_install_cmd - Name of the Main IIB Command for Deployment
+    # iib_wmb_version - IIB software version
+    # iib_broker_name - Broker Name in IIB
+    # iib_eg_name - Exclusion Group in IIB
+    # iib_app_name - Application Name in IIB
+    #####################################################
+
+  tasks:
+    - block:
+      - name: Setup temp directory before deployment
+        import_role:
+          name: linuxTempDir
+
+      - name: Download artifact from Artifactory and extract in TempDir
+        import_role:
+          name: linuxDownloadAndPrep
+          ## Note: deploy_downloads_dir is assigned by linuxTemDir
+
+      - name: SET Main Install Command
+        set_fact:
+          iib_main_install_cmd: '. /opt/mqsi/{{ wmb_version }}/server/bin/mqsiprofile;export ODBCINI=/var/mqsi/odbc/odbc.ini;/var/mqsi/mqsihome/ansible/deploybar.sh {{ broker_name }} {{ eg_name }} /MSTCSI/ansible_artifactory/{{ barfile_name }}'
+          iib_main_install_cmd_ready: "true"
+        register: required_vars
+   
+      - name: List extracted files in TempDir
+        shell: "/bin/ls -altr {{ deploy_downloads_dir }}/*"
+        register: show_files
+
+      - name: List extracted files in TempDir
+        debug:
+          msg: "Files in TempDir: {{ show_files.stdout }}"
+
+      - name: Optional PreInstall Command
+        shell: "{{ iib_pre_install_cmd }}"
+        register: preinstallout
+        when: iib_pre_install_cmd is defined and iib_pre_install_cmd != ""
+        
+      # Remove the Compressed Artifact file so it is not copied to the filesDestination with the contents
+      - name: Remove Compressed Artifact file
+        vars:
+          file_extension: "{{ published_artifact_url.split ( '.') [ -1 ] }}"
+        file: 
+          path: "{{ deploy_downloads_dir }}/{{ name }}"
+          state: absent
+        when: file_extension == 'zip' or
+          file_extension == 'tgz' or
+          file_extension == 'tar'
+        tags: always
+        
+      - name: "Copy artifact {{ art_sub_dir }} contents to destination directory"
+        synchronize:
+          src: "{{ deploy_downloads_dir }}/{{ art_sub_dir|default('') }}/"
+          dest: "{{ files_destination }}/."
+        delegate_to: "{{ inventory_hostname }}"
+
+      - name: IIB Main Install Command
+        shell: "{{ iib_main_install_cmd }}"
+        register: maininstallout
+        when: iib_main_install_cmd is defined and iib_main_install_cmd != ""
+
+      - name: Optional PostInstall Command
+        shell: "{{ iib_post_install_cmd }}"
+        register: postinstallout
+        when: iib_post_install_cmd is defined and iib_post_install_cmd != ""
+
+      - name: Clean temp directory after deployment
+        import_role:
+          name: linuxMWTempDir
+          tasks_from: cleanTempDir
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+
+      # Conditional for Block above  
+      when: dep_env not in deployed or dep_override
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
