@@ -1,0 +1,19 @@
+---
+
+- name: Tomcat MW deployment - STOP cluster(s)
+  import_tasks: mw_cluster.yml
+  vars:
+    mw_cluster_action: STOP
+
+- name: Tomcat MW deployment - INSTALL
+  import_tasks: mw_install.yml
+  vars:
+    mw_install_action: INSTALL
+
+- name: Execute commands specified in survey variable
+  import_tasks: linux_ansible_scripts.yml
+
+- name: Tomcat MW deployment - START cluster(s)
+  import_tasks: mw_cluster.yml
+  vars:
+    mw_cluster_action: START
