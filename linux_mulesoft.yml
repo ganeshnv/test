@@ -1,0 +1,25 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  # vars_files:
+  #   - roles/common/vars/linux_mule_common.yml
+
+  # pre_tasks:
+
+  roles:
+  - { role: common, osType: linux, is_mw: "false" }
+  - { role: chkArtifactDep }
+
+  tasks:
+    - block:
+      - name: Start Mulesoft Deployment
+        import_role:
+          name: linux_soa_mule
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+      when: dep_env not in deployed or dep_override
+
+  # post_tasks:
