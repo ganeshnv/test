@@ -1,0 +1,5 @@
+---
+- name: staging directory
+  file:
+    state: "{{ stage_dir_state }}"  
+    path: "{{ deploy_downloads_dir }}/"
