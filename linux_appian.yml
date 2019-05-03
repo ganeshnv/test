@@ -1,0 +1,61 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  vars_files:
+    - roles/common/vars/linux_appian_common.yml
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux, is_mw: "false" }
+  - { role: chkArtifactDep }
+
+  tasks:
+    - block:
+      - name: Setup download temp folder
+        import_role:
+          name: linux_special_tech_temp_dir
+        tags: always
+
+      - name: Download artifact from Artifactory
+        import_role:
+          name: linuxDownload
+        tags: always
+
+      - name: Unarchive artifact to destination directory
+        import_role:
+          name: linuxUnarchive
+        tags: always
+
+      - name: Call appiandeploy_rb
+        shell: " export ROOT_DIR=/hosting/appianDeploy;export PATH=/efs/dist/oracle/jdk/1.8.0_172-build001/.exec/x86-64.rhel.6/bin:/hosting/appianDeploy/utilities/apache-ant-1.10.1:/hosting/appianDeploy/utilities/groovy-2.4.12/bin:/efs/dist/ruby/core/1.9.3-p385-build001/.exec/x86-64.rhel.6/bin:$PATH;ruby /hosting/appianDeploy/utilities/build/appian_deploy.rb --import --ait {{ aitnumber }} --component {{ artifactname }} --branch {{ scmbranch }} --artifact_folder {{ deploy_downloads_dir }}/dist --deploy_to {{ dep_env }} "
+        no_log: true
+        when: comp_name is not defined
+        tags: always
+
+      - name: Call appiandeploy_rb
+        shell: " export ROOT_DIR=/hosting/appianDeploy;export PATH=/efs/dist/oracle/jdk/1.8.0_172-build001/.exec/x86-64.rhel.6/bin:/hosting/appianDeploy/utilities/apache-ant-1.10.1:/hosting/appianDeploy/utilities/groovy-2.4.12/bin:/efs/dist/ruby/core/1.9.3-p385-build001/.exec/x86-64.rhel.6/bin:$PATH;ruby /hosting/appianDeploy/utilities/build/appian_deploy.rb --import --ait {{ aitnumber }} --component {{ comp_name }} --branch {{ scmbranch }} --artifact_folder {{ deploy_downloads_dir }}/dist --deploy_to {{ dep_env }} "
+        no_log: true
+        when: comp_name is defined
+        tags: always
+
+      - name: Clean temp directory after deployment
+        import_role:
+          name: linux_special_tech_temp_dir
+          tasks_from: stageDir
+        vars:
+          stage_dir_state: absent
+        tags: always
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+        tags: always
+      when: dep_env not in deployed or dep_override
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
