@@ -1,0 +1,49 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux, is_mw: "false" }
+
+  vars:
+    iib_shell_env: '. /opt/mqsi/{{ iib_wmb_version }}/server/bin/mqsiprofile;export ODBCINI=/var/mqsi/odbc/odbc.ini'
+
+  tasks:
+
+  - name: Define commmands for IIB EG Operations
+    set_fact:
+      iib_main_cmd: '/var/mqsi/mqsihome/ansible/{{ iib_operation }}.sh {{ iib_broker_name }} {{ iib_eg_name }}'
+    when: iib_operation in "stopeg starteg"
+
+  - name: Define commands for IIB App Operations
+    set_fact:
+      iib_main_cmd: '/var/mqsi/mqsihome/ansible/{{ iib_operation }}.sh {{ iib_broker_name }} {{ iib_eg_name }} {{ iib_app_name }}'
+    when: iib_operation in "stopapp startapp"
+
+  - name: Define commands for IIB Flow Operations
+    set_fact:
+      iib_main_cmd: '/var/mqsi/mqsihome/ansible/stopflow.sh {{ iib_broker_name }} {{ iib_eg_name }} {{ iib_flow_name }} {{ iib_app_name }}'
+    when: iib_operation in "stopflow startflow"
+
+  - name: Optional Pre Command
+    shell: "{{ iib_pre_cmd }}"
+    register: preout
+    when: iib_pre_cmd is defined and iib_pre_cmd != ""
+
+  - name: Main Operation Command
+    shell: "{{ iib_shell_env }}; {{ iib_main_cmd }}"
+    register: mainout
+    when: iib_main_cmd is defined and iib_main_cmd != ""
+      
+  - name: Optional Post Command
+    shell: "{{ iib_post_cmd }}"
+    register: postout
+    when: iib_post_cmd is defined and iib_post_cmd != ""
+    
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
