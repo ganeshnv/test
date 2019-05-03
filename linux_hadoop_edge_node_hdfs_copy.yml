@@ -1,0 +1,17 @@
+---
+
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  
+  tasks:
+    - block:
+      - name: copy from EN to HDFS
+        command: hadoop fs -put -p "{{ item }}" "{{ hdfsDir}}"
+        ignore_errors: yes
+        with_items:
+          - "{{ENComponents}}"
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
