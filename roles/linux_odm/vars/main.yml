@@ -1,0 +1,5 @@
+---
+deploy_downloads_dir: "/hosting/deploy/dqc/{{ app }}"
+ent_dir: "/hosting/CAD_Projects/{{ app }}"
+prop_file: "ruleapp.properties"
+ANT_OPTS: "-Djavax.net.ssl.trustStore=/hosting/Auto_deploy_bundle/certificates/se/cacerts"
