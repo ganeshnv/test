@@ -1,0 +1,3 @@
+---
+- name: clear gathered facts from all hosts
+  meta: clear_facts
