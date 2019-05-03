@@ -1,0 +1,28 @@
+---
+- block:
+  - stat:
+      path: "/hosting"
+    register: hosting_loc_stats
+
+  - name: Open up /hosting permissions to 755
+    shell: "pbrun pbmwansb {{ hosting_loc_stats.stat.pw_name }}=open_hosting"
+    failed_when: false
+    
+  - stat:
+      path: "/hosting/configs"
+    register: mw_loc_stats
+
+  - name: Update mw_id to Match Owner of /hosting/configs
+    set_fact:
+      mw_id: "{{ mw_loc_stats.stat.pw_name }}"
+    when: mw_loc_stats.stat.isdir is defined and mw_loc_stats.stat.isdir
+
+  - name: Set Other Facts
+    set_fact:
+      setup_runMWCmd: "pbrun pbmwansb {{ mw_id }}=setup_runmwcmd"
+      setup_run_mw_cmd: "pbrun pbmwansb {{ mw_id }}=setup_runmwcmd"
+      runMWCmd: "pbrun pbmwansb {{ mw_id }}=/hosting/bin/ansible/runMWCmd"
+      run_mw_cmd: "pbrun pbmwansb {{ mw_id }}=/hosting/bin/ansible/runMWCmd"
+    when: mw_id is defined
+ # conditional to skip the block above (for Non-RunMWCmd playbooks)
+  when: is_mw is not defined or is_mw != "false"
