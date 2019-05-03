@@ -1,0 +1,85 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  vars_files:
+    - roles/common/vars/linux_common.yml
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux }
+  - { role: chkArtifactDep }
+
+  tasks:
+    - block:
+      - name: Setup download temp folder
+        import_role:
+          name: linuxMWTempDir
+
+      - name: Download artifact from Artifactory
+        import_role:
+          name: linuxDownload
+
+      - name: Properties file deployment - STOP cluster(s)
+        import_role:
+          name: linuxMWCmd
+          tasks_from: MWCluster
+        vars:
+          mw_cluster_action: STOP
+        when: restart_cluster
+
+      - name: Unzip file
+        unarchive: 
+          src: "{{ deploy_downloads_dir }}/{{ name }}"
+          dest: "{{ deploy_downloads_dir }}"
+          copy: false
+        
+      - name: Change modes of unzipped files for {{ deploy_downloads_dir }} to allow copy to destination
+        shell: "chmod -R 755 {{ deploy_downloads_dir }}"
+        
+# Remove the Compressed Artifact file that is not copied to the filesDestination with the contents
+      - name: Remove Compressed Artifact file
+        vars:
+          file_extension: "{{ published_artifact_url.split ( '.') [ -1 ] }}"
+        file: 
+          path: "{{ deploy_downloads_dir }}/{{ name }}"
+          state: absent
+        when: file_extension == 'zip' or
+          file_extension == 'tgz' or
+          file_extension == 'tar'
+        tags: always
+
+      - name: Copy files
+        shell: "{{ run_mw_cmd }} COPY-{{ cell_code }} {{ deploy_downloads_dir }}/{{art_sub_dir }}/. {{ install_properties_destination }}"
+        vars:
+        - was_env_name: ''
+        - art_sub_dir: "{{ was_env_name }}"
+
+      - name: Properties file deployment - START cluster(s)
+        import_role:
+          name: linuxMWCmd
+          tasks_from: MWCluster
+        vars:
+          mw_cluster_action: START
+        when: restart_cluster
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+
+      always:
+      - name: Remove temp directory after deployment
+        import_role:
+          name: linuxMWTempDir
+          tasks_from: remove_temp_dir.yml
+        tags: always
+
+      # conditional for block above
+      when: dep_env not in deployed or dep_override
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
