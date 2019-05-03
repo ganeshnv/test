@@ -1,0 +1,19 @@
+---
+
+  - name: Create the downloads directory to save the deployable files.
+    file:  
+      path: "{{ ent_dir }}"
+      state: "directory" 
+
+  - name: Copy ruleapp.properties
+    copy:
+      src: "/hosting/CAD_Projects/temp/{{ prop_file }}"
+      dest: "{{ ent_dir }}"
+      remote_src: yes
+
+  - name: Copy files
+    command: "cp -R {{ deploy_downloads_dir }}/dist {{ ent_dir }}/"
+
+  - name: Execution of Ant Script
+    shell: "pbrun pbmwansb hosting=/hosting/bin/ansible/runMWCmd ODM_DEPLOY"
+    delegate_to: "{{ inventory_hostname }}" 
