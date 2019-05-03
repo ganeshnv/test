@@ -1,0 +1,39 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+
+  vars_files:
+    - roles/common/vars/linux_common.yml
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux }
+  - { role: chkArtifactDep }
+
+  tasks:
+    - block:
+      - name: Setup download temp folder
+        vars:
+          cell_code: "{{ dep_env }}"      
+        import_role:
+          name: linuxMWTempDir
+        tags: always
+
+      - name: Download artifact from Artifactory
+        import_role:
+          name: linuxDownloadAndPrep
+        tags: always
+
+      - name: Execution of Ant Script
+        shell: "pbrun pbmwansb hosting=/hosting/bin/ansible/runMWCmd ODM_DEPLOY_{{ dep_env }}"
+        delegate_to: "{{ inventory_hostname }}"
+
+      always:
+        - name: Remove temp directory after deployment
+          vars:
+            cell_code: "{{ dep_env }}"      
+          import_role:
+            name: linuxMWTempDir
+            tasks_from: remove_temp_dir.yml
+          tags: always 
