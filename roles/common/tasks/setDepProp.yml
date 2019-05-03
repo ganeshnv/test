@@ -1,0 +1,58 @@
+---
+- name: get deployment properties
+  uri:
+    url: "{{ dep_prop_api }}"
+    method: POST
+    return_content: yes
+    body:
+      SPK: "{{ spk }}"
+      AITNumber: "{{ aitnumber }}"
+      ComponentName: "{{ artifactname }}"
+      EnvName: "{{ dep_env }}"
+      ostype: "{{ os_type }}"
+      user: "{{ ansible_user_id }}"
+    body_format: json
+    force_basic_auth: yes
+    headers:
+      authorization: "{{ auth_api_token }}"
+      x-Origin: "{{ x_origin }}"
+  delegate_to: localhost
+  check_mode: no
+  run_once: true
+  register: get_dep_prop
+  no_log: true
+  ignore_errors: yes
+
+- name: Debug variables for Celestial API call
+  debug:
+    var: debug_variables
+  vars:
+    debug_variables:
+      dep_prop_api: "{{ dep_prop_api }}"
+      spk: "{{ spk }}"
+      aitnumber: "{{ aitnumber }}"
+      artifactname: "{{ artifactname }}"
+      dep_env: "{{ dep_env }}"
+      os_type: "{{ os_type }}"
+  tags:
+    - never
+    - debug
+
+- name: Return failure message if celestial API call fails
+  fail:
+    msg: "{{ get_dep_prop.msg }}"
+  when: get_dep_prop.failed
+
+- name: set deployment properties
+  set_fact:
+    set_dep_prop: "{{ get_dep_prop.content|from_json }}"
+  delegate_to: localhost
+  run_once: true
+  no_log: true
+
+- set_fact:
+    "{{ item.key }}": "{{ item.value }}" 
+  with_dict: "{{ set_dep_prop.Group[0].GroupVariables }}"
+  delegate_to: localhost
+  run_once: true
+  no_log: true
