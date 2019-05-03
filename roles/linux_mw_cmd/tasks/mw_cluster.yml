@@ -1,0 +1,7 @@
+---
+- name: "new name" # "MW deployment - {{ mw_cluster_action }} cluster(s)"
+  include_tasks: run_mw_cmd.yml
+  vars:
+      mw_cmd_args: "{{ mw_cluster_action }}_{{ item }}"
+  with_items:
+    - "{{ cluster_name }}"
