@@ -1,0 +1,32 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  vars_files:
+    - roles/common/vars/linux_common.yml
+
+  pre_tasks:
+
+  tasks:
+  - stat: 
+      path: "/hosting/products"
+    register: mw_loc_stats 
+
+  - name: Overwrite mw_id to Match the Owner of the dir /hosting/products
+    set_fact:
+      mw_id: "{{ mw_loc_stats.stat.pw_name }}"
+    when: mw_loc_stats.stat.isdir is defined and mw_loc_stats.stat.isdir   
+
+  - name: "new name" # "MW deployment - {{ mw_cluster_action }} cluster(s)"
+    vars:
+      mw_cmd_args: "STOP_{{ item }}"
+    include_role:
+      name: linux_mw_cmd
+      tasks_from: run_mw_cmd
+    with_items:
+      - "{{ cluster_name }}"
+
+  post_tasks:
+  - name: Clear facts
+    import_role:
+      name: clearFacts
+    tags: always
