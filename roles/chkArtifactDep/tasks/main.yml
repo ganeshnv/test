@@ -1,0 +1,5 @@
+---
+- debug:
+    msg: "{{ name }} is already in {{ dep_env }}. do nothing..."
+  when: (dep_env in deployed and not dep_override) or (dep_env in deployed and dep_override is not defined)
+  tags: always
