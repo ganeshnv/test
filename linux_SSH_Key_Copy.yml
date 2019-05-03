@@ -1,0 +1,43 @@
+#==========================================================================
+# Author:       Raghu Teja Alapati
+# File:         SSH_Key_Copy.yml
+# Description:  Playbook to copy ssh keys to server
+#==========================================================================
+---
+- name: passwordless configuration
+  hosts: "{{ servernames }}"
+  #ignore_errors: yes
+  tasks:
+    - name: Change to service account home directory
+      shell: "cd /home/{{ serviceid }}"
+      register: chdir_output
+      
+    - name: Return the error message of changing the directory "{{ chdir_output.rc }}"
+      fail:
+        msg: "Unalbe to navigate to path /home/{{ serviceid }}"
+      when: chdir_output.rc != 0
+       
+    - name: Create .ssh directory under {{ serviceid }} home directory
+      file:
+        dest: /home/{{ serviceid }}/.ssh/
+        state: directory 
+        owner: "{{ serviceid }}"
+        mode: 0700
+        recurse: yes 
+
+    - name: Create authorized_keys file under .ssh directory
+      file:
+        path: /home/{{ serviceid }}/.ssh/authorized_keys
+        state: touch
+        owner: "{{ serviceid }}"
+        mode: 0600
+        
+    - name: Get the keys present in authorized_keys
+      command: cat authorized_keys
+      args:
+        chdir: "/home/{{ serviceid }}/.ssh"
+      register: ssh_keys
+    
+    - name: Copying ssh key to authorized_keys file if they are not present
+      shell: "echo {{ publicKey }} >> /home/{{ serviceid }}/.ssh/authorized_keys"
+      when: ssh_keys.stdout.find(publicKey) == -1
