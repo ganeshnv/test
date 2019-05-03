@@ -1,0 +1,84 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  vars_files:
+    - roles/common/vars/win_common.yml
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: windows }
+  - { role: chkArtifactDep }
+
+  tasks:
+  
+    - name: set curr_group_name
+      set_fact:
+        curr_group_name: "{{ item.key }}"
+      when: item.key in group_names
+      with_dict: "{{ feature_dict }}" 
+  
+    - block:    
+    
+    
+      - name: Reboot server if pending reboot
+        import_role:
+          name: chkWinReboot
+        when: allow_pending_reboot|default(false) == true
+    
+      - name: Download artifact from Artifactory
+        import_role:
+          name: winDownload
+        tags: always                           
+        
+      - name: Check if IIS is installed
+        import_role:
+          name: win_check_iis      
+      
+      - name: Stop '{{ iis_web_app_pool }}' application pool
+        import_role:
+          name: winIisWebAppPool
+        vars:
+          iis_web_app_pool_state: Stopped
+        when: iis_installed | default(false)   
+                   
+      - name: Install MSI Package
+        import_role:
+          name: winPackage
+        vars:
+          pck_state: present
+          pck_id: auto
+        tags: always
+      
+      - name: Start '{{ iis_web_app_pool }}' application pool
+        import_role:
+          name: winIisWebAppPool
+        vars:
+          iis_web_app_pool_state: Started
+        when: iis_installed | default(false)
+        
+      - name: Clean temp folder
+        import_role:
+          name: winCleanTempFolder
+        tags: always
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+        tags: always
+
+      - name: Remove {{ dep_env }} from deployed property in Artifactory
+        import_role:
+          name: removeDepArtl
+        vars:
+          remove_record: true
+        when: dep_env in deployed and pck_state is defined and pck_state == "absent"
+      when: ( dep_env not in deployed or dep_override ) and ( curr_group_name is defined )
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
+      
