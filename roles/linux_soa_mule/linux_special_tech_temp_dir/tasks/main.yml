@@ -1,0 +1,20 @@
+---
+- name: set facts
+  set_fact:
+    deploy_downloads_dir: "{{ temp_location }}/{{ artifact_name }}/{{ dep_env }}"
+  when: comp_name is not defined
+
+- name: set facts
+  set_fact:
+    deploy_downloads_dir: "{{ temp_location }}/{{ comp_name }}/{{ dep_env }}"
+  when: comp_name is defined
+
+- name: delete the staging directory to remove prev contents
+  import_tasks: stageDir.yml
+  vars:
+    stage_dir_state: absent
+
+- name: create the staging directory
+  import_tasks: stageDir.yml
+  vars:
+    stage_dir_state: directory
