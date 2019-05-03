@@ -1,0 +1,97 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  vars_files:
+    - roles/common/vars/win_common.yml
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: windows }
+  - { role: chkArtifactDep }
+
+  tasks:
+    - block:
+        
+      - name: Reboot server if pending reboot
+        import_role:
+          name: chkWinReboot
+        when: allow_pending_reboot|default(false) == true
+    
+      - name: Download artifact from Artifactory
+        import_role:
+          name: winDownload
+        tags: always
+
+      - name: Unzip artifact to temp location
+        import_role:
+          name: winUnZip
+        tags: always
+
+      - name: Sync component from temp location to target location
+        import_role:
+          name: winSync
+        tags: artifact
+
+      - block:
+        - name: Component environment config token replacement
+          import_role:
+            name: winAppConfigToken
+          when: app_config == "celestial" or app_config is not defined
+          tags: app_config
+
+        - name: Copy component environment config file to target location
+          import_role:
+            name: winCopyAppConfig
+          when: app_config == "file" and app_config is defined
+          tags: app_config
+        when: app_config == "celestial" or app_config == "file" or app_config is not defined
+
+      - name: Edit Registry
+        import_role:
+          name: winRegistry
+        when: win_registry is defined
+
+      - name: Install to GAC
+        import_role:
+          name: win_gac
+        when: win_gac_vars is defined        
+        
+      - name: Set NTFS Permission
+        import_role:
+          name: winAcl
+        tags: ['permissions', 'windows']
+        
+      - name: Environment Variable
+        import_role:
+          name: winEnvironmentVar
+        when: win_environment_vars is defined
+
+      - name: Edit PATH Environment Variable
+        import_role:
+          name: winPath
+        when: win_path_elements is defined        
+
+      - name: Clean component environment config folder
+        import_role:
+          name: winCleanConfigFolder
+        when: app_config == "celestial" or app_config == "file" or app_config is not defined
+        tags: always
+
+      - name: Clean temp folder
+        import_role:
+          name: winCleanTempFolder
+        tags: always
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+        tags: always
+      when: dep_env not in deployed or dep_override
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
