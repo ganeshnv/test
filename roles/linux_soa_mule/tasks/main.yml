@@ -1,0 +1,92 @@
+---
+# tasks file for soa_mule
+  - debug:
+      msg: "Initiating deployment process for AIT {{ aitnumber }} ({{ ait_short_name }}) to environment {{ dep_env }}"
+
+  - name: Perform deployment process with error handling
+#   =============
+    block:
+#   =============
+    - name: Generate unique identifier for work areas to allow multiple runs of this job
+      shell: "uuidgen"
+      register: result_uuidgen
+  
+    - name: Set uuidgen variable from previous command result
+      set_fact:
+        deploy_uuidgen: "{{ result_uuidgen.stdout_lines[0] }}"
+
+    - name: Set unique variable for subdirectory name for this deployment
+      set_fact:
+        deploy_jobdir: "{{ artifact_file_name }}_{{ dep_env }}_{{deploy_uuidgen}}"
+
+    - name: Set work directory names with unique id
+      set_fact:
+        deploy_downloads_dir: "{{ deploySvr_dir_pfx }}/{{ deploy_jobdir }}/{{ deploy_download_subdir }}"
+
+    - name: Create directories and apply permissions 
+      file:
+        state: "directory"
+        path: "{{ item }}"
+        mode: "{{ permissions_for_dir }}"
+        recurse: no
+      with_items:
+        - "{{ deploySvr_rootDir }}"   # should already exist and remains for all jobs
+        - "{{ deploySvr_dir_pfx }}"
+        - "{{ deploySvr_dir_pfx }}/{{ deploy_jobdir }}"
+        - "{{ deploy_downloads_dir }}"
+      register: echo_result
+    - debug: var=echo_result 
+    
+    - name: "Pull deployable {{ artifact_file_name }} component from Artifactory with url {{ published_artifact_url }}"
+      get_url:
+        url: "{{ published_artifact_url }}"
+        dest: "{{ deploy_downloads_dir }}/{{ artifact_file_name }}.zip"
+        mode: "{{ permissions_for_file }}" 
+        url_username: "{{ artifactory_user }}"
+        url_password: "{{ artifactory_pwd|default('00000000') }}"
+        timeout: 30
+      retries: 5
+      delay: 5
+
+    - name: Set SOA SOAP/REST Parameters
+      set_fact:
+          soa_deploy_filename: "{{ artifact_file_name }}.zip"
+          soa_deploy_fileuri: "{{ deploy_downloads_dir }}/{{ artifact_file_name }}.zip"
+          servertype: "{{ soa_servertype }}"
+          serverlist: "{{ soa_serverlist }}"
+          isdomain: "{{ soa_isdomain }}"
+          appcode: "{{ soa_appcode }}"
+          envcode: "{{ soa_envcode }}"
+          mmccode: "{{ soa_mmccode }}"
+          userid: "{{ soa_userid }}"
+          passwd: "{{ soa_authstring }}"
+
+    - name: "Check for Mandatory Variables.."
+      fail:
+         msg: 'FAIL - One of the Mandatory Variable is missing -  
+                soa_servertype:{{ soa_servertype }} 
+                soa_serverlist:{{ soa_serverlist }} 
+                soa_isdomain:{{ soa_isdomain }}
+                soa_appcode:{{ soa_appcode }} 
+                soa_envcode:{{ soa_envcode }} 
+                soa_mmccode:{{ soa_mmccode }} 
+                soa_userid:{{ soa_userid }} 
+                soa_authstring:{{ soa_authstring }} !'
+      when: (servertype == 'not defined') or (serverlist == 'not defined') or (isdomain == 'not defined') or (appcode == "not defined") or (envcode == "not defined") or (envcode == "not defined") or (mmccode == "not defined") or (userid == "not defined") or (passwd == "not defined")
+
+    - include_tasks: bdtSOADeploy_RESTRequest.yml
+   
+
+#   =============
+    always:
+#   =============
+    - name: "Remove job temp work and dist areas for {{deploy_jobdir}}" 
+      file:
+         state: absent
+         path: "{{ deploySvr_dir_pfx }}/{{ deploy_jobdir }}/" 
+      register: echo_result
+    - debug: var=echo_result 
+
+    - debug:
+        msg: "End of deployment process for AIT {{ aitnumber }} ({{ ait_short_name }}), Component {{ artifact_file_name }} to environment {{ dep_env }}"
+...
