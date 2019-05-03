@@ -1,0 +1,22 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/" xmlns:soa="http://schemas.datacontract.org/2004/07/SOA.BusinessObjects.MULE">
+   <soapenv:Header>
+      <tem:serverType>{{soa_servertype}}</tem:serverType>
+      <tem:serverList>{{soa_serverlist}}</tem:serverList>
+      <tem:isDomain>{{soa_isdomain}}</tem:isDomain>
+      <tem:UserData>
+         <soa:AuthString>{{soa_authstring}}</soa:AuthString>
+         <soa:UserId>{{soa_userid}}</soa:UserId>
+      </tem:UserData>
+      <tem:FileName>{{soa_deploy_filename}}</tem:FileName>
+      <tem:EnvData>
+         <soa:AppCode>{{soa_appcode}}</soa:AppCode>
+         <soa:AppEnvCode>{{soa_envcode}}</soa:AppEnvCode>
+         <soa:MMCEnvCode>{{soa_mmccode}}</soa:MMCEnvCode>
+      </tem:EnvData>
+   </soapenv:Header>
+   <soapenv:Body>
+      <tem:DeployMetaData>
+         <tem:FileByteStream>{{soa_b64encoded_deployfile['content']}}</tem:FileByteStream>
+      </tem:DeployMetaData>
+   </soapenv:Body>
+</soapenv:Envelope>	
