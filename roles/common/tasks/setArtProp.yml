@@ -1,0 +1,54 @@
+---
+- name: Set artifact URL
+  set_fact:
+    artifact_file_name: "{{ (item.split('/')[-1]).split('-')[0] }}"
+    published_artifact_url: "{{item}}"
+  with_items:
+    - "{{ published_artifact_url }}"
+  when: published_artifact_url is defined
+
+- name: Get artifact properties
+  uri:
+    url: "{{ art_detail_api }}"
+    method: POST
+    return_content: yes
+    body: ' {"artifactUrl":"{{ published_artifact_url }}"}'
+    body_format: json
+    force_basic_auth: yes
+    timeout: 180
+  delegate_to: localhost
+  check_mode: no
+  run_once: true
+  register: get_art_prop
+  no_log: true
+  ignore_errors: yes
+
+- name: Debug variables for Celestial API call
+  debug:
+    var: debug_variables
+  vars:
+    debug_variables:
+      art_detail_api: "{{ art_detail_api }}"
+      published_artifact_url: "{{ published_artifact_url }}"
+  tags:
+    - never
+    - debug
+
+- name: Return failure message if celestial API call fails
+  fail:
+    msg: "{{ get_art_prop.msg }}"
+  when: get_art_prop.failed
+
+- name: set artifact properties
+  set_fact:
+    set_art_prop: "{{ get_art_prop.content|from_json }}"
+  delegate_to: localhost
+  run_once: true
+  no_log: true
+
+- set_fact:
+    "{{ item.key }}": "{{ item.value }}" 
+  with_dict: "{{ set_art_prop }}"
+  delegate_to: localhost
+  run_once: true
+  no_log: true
