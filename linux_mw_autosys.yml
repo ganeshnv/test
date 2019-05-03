@@ -1,0 +1,177 @@
+---
+
+- name: "AutoSys Deployment"
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+######################################################################################################
+  vars:
+    workspace: ~/autosys
+    IXP_HOME: /efs/dist/tpcommon/ixp/latest/common
+    JAVA_HOME: /efs/dist/oracle/jre/1.8.0_144-build001/.exec/x86-64.rhel.5
+######################################################################################################
+
+#  vars_files:
+#    - roles/common/vars/linux_common.yml
+
+#  pre_tasks:
+
+#  roles:
+#  - { role: common, os_type: linux }
+#  - { role: chkArtifactDep }
+
+  tasks:
+    - name: "Show published_artifact_url value"
+      debug:
+        msg: "published_artifact_url = {{ published_artifact_url }}"
+        
+    - name: "Deprecation warning if artifactUrl is defined"
+      debug:
+        msg: "[WARNING]: artifactUrl variable is deprecated. Please use published_artifact_url variable for passing the Artifactory URL"
+      when: artifactUrl is defined
+        
+    - name: "Clean workspace {{ workspace }}"
+      file:
+        path: "{{ workspace }}/"
+        state: absent
+
+    - name: "Create the workspace {{ workspace }} to save the deployable files."
+      file:
+        mode: 493
+        path: "{{ workspace }}"
+        state: directory
+
+    - name: "Download from artifactory {{ published_artifact_url }} to {{ workspace }}"
+      get_url:
+        dest: "{{ workspace }}"
+        mode: 493
+        url: "{{ item }}"
+        url_password: "{{ artifactory_pwd }}"
+        url_username: "{{ artifactory_user }}"
+        timeout: 30
+      retries: 5
+      delay: 5
+      with_items: "{{ published_artifact_url }}"
+
+
+    - name: "Find package file to un-archive."
+      find:
+        paths: "{{ workspace }}"
+        patterns: "*.zip"
+      register: zipFile
+
+    - name: "Unarchive Pagckage {{ zipFile.files.0.path }}"
+      unarchive:
+        dest: "{{ workspace }}"
+        remote_src: true
+        src: "{{ zipFile.files.0.path }}"
+      
+    - name: "Find JIL file."
+      find:
+        paths: "{{ workspace }}/Package"
+        patterns: "*.jil"
+      register: jilFileList
+
+    - name: "Find Events file."
+      find:
+        paths: "{{ workspace }}/Package"
+        patterns: "*.events"
+      register: eventFileList
+      
+    - name: "Find Calendars file."
+      find:
+        paths: "{{ workspace }}/Package"
+        patterns: "*.calendars"
+      register: calendarFileList
+
+    - name: Handle JIL File if it exists.
+      block:
+      - name: "Set JilFile Fact"
+        set_fact:
+          JilFile: "{{ jilFileList.files.0.path }}"
+
+      - name: "Replace the JIL Tokens with environment values from dictionary."
+        register: replace_log
+        replace:
+          path: "{{ JilFile }}"
+          regexp: "<<{{ item.key }}>>"
+          replace: "{{ item.value }}"
+        with_dict: "{{ Tokens }}"
+
+      - name: "Print jil file after replacing the token values"
+        shell: "cat {{ JilFile }}"
+
+      - name: "Run ixjil command"
+        environment:
+          JAVA_HOME: "{{ JAVA_HOME }}"
+          AUTOSERV: "{{ Instance }}"
+          IXP_HOME: "{{ IXP_HOME }}"
+          IXP_SERVER_URL: "{{ Ixp_Server_Url }}"
+        shell: "PATH=$PATH:$IXP_HOME/bin:$JAVA_HOME/bin; ixjil < {{ JilFile }}"
+
+      when: jilFileList.matched > 0
+
+    - name: Handle Events File if it exists.
+      block:
+
+      - name: "Set EventFile Fact"
+        set_fact:
+          EventFile: "{{ eventFileList.files.0.path }}"
+
+      - name: "Replace the Event Tokens with environment values from dictionary."
+        replace:
+          path: "{{ EventFile }}"
+          regexp: "<<{{ item.key }}>>"
+          replace: "{{ item.value }}"
+        with_dict: "{{ Tokens }}"
+        
+      - name: "print event file after replacing the variables"
+        register: eproperties_log
+        shell: "cat {{ EventFile }}"
+        
+      - name: "set environment variables and run ixsendevent command"
+        environment:
+          JAVA_HOME: "{{ JAVA_HOME }}"
+          AUTOSERV: "{{ Instance }}"
+          IXP_HOME: "{{ IXP_HOME }}"
+          IXP_SERVER_URL: "{{ Ixp_Server_Url }}"
+        shell: "PATH=$PATH:$IXP_HOME/bin:$JAVA_HOME/bin; ixsendevent {{ item }}"
+        with_items:
+        - "{{ eproperties_log.stdout_lines }}"
+    
+      when: eventFileList.matched > 0
+    
+    - name: Handle Calendars if file exists.
+      block:
+    
+        - name: "Set CalendarFile Fact"
+          set_fact:
+            CalendarFile: "{{ calendarFileList.files.0.path }}"
+    
+        - name: "Replace the Calendar Tokens with environment values from dictionary."
+          replace:
+            path: "{{ CalendarFile }}"
+            regexp: "<<{{ item.key }}>>"
+            replace: "{{ item.value }}"
+          with_dict: "{{ Tokens }}"
+        
+        - name: "print calendar file after replacing the variables"
+          register: eproperties_log
+          shell: "cat {{ CalendarFile }}"
+        
+        - name: "set environment variables and run ixAutoCal_Asc command"
+          environment:
+            JAVA_HOME: "{{ JAVA_HOME }}"
+            AUTOSERV: "{{ Instance }}"
+            IXP_HOME: "{{ IXP_HOME }}"
+            IXP_SERVER_URL: "{{ Ixp_Server_Url }}"
+          shell: "PATH=$PATH:$IXP_HOME/bin:$JAVA_HOME/bin; ixautocal_asc < {{ CalendarFile }}"
+    
+      when: calendarFileList.matched > 0
+    
+    #      always:
+    #      - name: Remove temp directory after deployment
+    #        vars:
+    #          cell_code: "{{ dep_env }}"      
+    #        import_role:
+    #          name: linuxMWTempDir
+    #          tasks_from: remove_temp_dir.yml
+    #        tags: always
