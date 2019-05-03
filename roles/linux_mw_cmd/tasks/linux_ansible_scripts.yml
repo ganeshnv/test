@@ -1,0 +1,9 @@
+---
+
+- name: Execute Scripts "{{ script_name }}"
+  include_tasks: run_mw_cmd.yml
+  vars:
+    mw_cmd_args: "{{ item }}"
+  with_items: "{{ script_name }}"
+  when:
+    - script_name is defined
