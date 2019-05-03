@@ -1,0 +1,70 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux, is_mw: "false" }
+  - { role: chkArtifactDep }
+
+  tasks:
+    - block:
+      - name: Setup temp directory before deployment
+        import_role:
+          name: linuxTempDir
+
+      - name: Download artifact from Artifactory and extract in TempDir
+        import_role:
+          name: linuxDownloadAndPrep
+          ## Note: deploy_downloads_dir is assigned by linuxTemDir
+
+      - name: List extracted files in TempDir
+        shell: "/bin/ls -altr {{ deploy_downloads_dir }}/*"
+        register: show_files
+
+      - name: List extracted files in TempDir
+        debug:
+          msg: "Files in TempDir: {{ show_files.stdout }}"
+      
+      - name: Optional PreInstall Command
+        shell: "{{ pre_install_cmd }}"
+        register: preinstallout
+        when: pre_install_cmd is defined
+        
+      # Remove the Compressed Artifact file so it is not copied to the filesDestination with the contents
+      - name: Remove Compressed Artifact file
+        file: 
+          path: "{{ deploy_downloads_dir }}/{{ name }}"
+          state: absent
+
+      - name: "Copy artifact {{ art_sub_dir }} contents to destination directory"
+        synchronize:
+          src: "{{ deploy_downloads_dir }}/{{ art_sub_dir|default('') }}/"
+          dest: "{{ files_destination }}/."
+          delete: yes
+        delegate_to: "{{ inventory_hostname }}"
+
+      - name: Optional PostInstall Command
+        shell: "{{ post_install_cmd }}"
+        register: postinstallout
+        when: post_install_cmd is defined
+
+      - name: Clean temp directory after deployment
+        import_role:
+          name: linuxMWTempDir
+          tasks_from: cleanTempDir
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+
+      # Conditional for Block above  
+      when: dep_env not in deployed or dep_override
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
