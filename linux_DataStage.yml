@@ -1,0 +1,50 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux, is_mw: "false" }
+  - { role: chkArtifactDep }
+
+  tasks:
+    - block:
+      - name: Setup temp directory before deployment
+        import_role:
+          name: linuxTempDir
+        tags: always
+
+      - name: Download artifact from Artifactory
+        import_role:
+          name: linuxDownload
+        tags: always
+
+      - name: Unarchive artifact to destination directory
+        import_role:
+          name: linuxUnarchive
+        tags: always
+
+      - name: Start DataStage Deploment
+        import_role:
+          name: linuxDataStage
+        tags: always
+
+      - name: Clean temp directory after deployment
+        import_role:
+          name: linuxMWTempDir
+          tasks_from: cleanTempDir
+        tags: always
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+        tags: always
+      when: dep_env not in deployed or dep_override
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
