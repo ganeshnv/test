@@ -1,0 +1,96 @@
+---
+
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  vars_files:
+    - roles/common/vars/linux_common.yml
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux }
+  - { role: chkArtifactDep }
+
+  tasks:
+  
+    - name: set curr_group_name
+      set_fact:
+        curr_group_name: "{{ item.key }}"
+      when: item.key in group_names
+      with_dict: "{{ server_type_sub_groups }}"
+        
+    - block:
+      - name: Setup download temp folder
+        import_role:
+          name: linuxMWTempDir
+        tags: always
+
+      - name: Download artifact from Artifactory
+        import_role:
+          name: linuxDownloadAndPrep
+          tasks_from: main_with_delete_zip
+        tags: always
+
+      - name: Exit if check mode
+        meta: end_play
+        when: ansible_check_mode
+
+      - name: Websphere MW deployment - STOP cluster(s)
+        import_role:
+          name: linux_mw_cmd
+          tasks_from: mw_cluster
+        vars:
+          mw_cluster_action: STOP
+        when: ( server_type_sub_groups[curr_group_name].find('EAR') != -1 ) and ( restart_cluster is not defined or restart_cluster != false )
+        
+      - name: Copy files
+        shell: "{{ run_mw_cmd }} COPY-{{ cell_code }} {{ deploy_downloads_dir }}/{{art_sub_dir }}/. {{ install_properties_destination }}"
+        vars:
+        - was_env_name: ''
+        - art_sub_dir: "{{ was_env_name }}"
+        when: ( server_type_sub_groups[curr_group_name].find('props') != -1 )  and ( deploy_files is not defined or deploy_files != false )
+        tags: always
+
+      - name: Find ear files
+        import_role:
+          name: linuxFindFiles
+          tasks_from: main_with_checksums
+        vars:
+          file_patterns: "*.ear"
+        tags: always
+
+      - name: Websphere MW deployment
+        import_role:
+          name: linux_mw_cmd
+          tasks_from: mwwas_deployonly
+        when: ( server_type_sub_groups[curr_group_name].find('EAR') != -1 ) and ( deploy_ear is not defined or deploy_ear != false )
+        tags: always
+        
+      - name: Websphere MW deployment - START cluster(s)
+        import_role:
+          name: linux_mw_cmd
+          tasks_from: mw_cluster
+        vars:
+          mw_cluster_action: START
+        when: ( server_type_sub_groups[curr_group_name].find('EAR') != -1 ) and ( restart_cluster is not defined or restart_cluster != false )
+        
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+        tags: always
+
+      always:
+      - name: Remove temp directory after deployment     
+        import_role:
+          name: linuxMWTempDir
+          tasks_from: remove_temp_dir.yml
+        tags: always
+
+      when: ( dep_env not in deployed or dep_override ) and ( curr_group_name is defined )
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
