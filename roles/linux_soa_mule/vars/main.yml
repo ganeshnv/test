@@ -1,0 +1,18 @@
+---
+# vars file for soa_mule
+deploySvr_rootDir:      "/tmp/mulesoft"
+deploySvr_dir_pfx:      "{{deploySvr_rootDir}}/deployjob"
+deploy_download_subdir: "dist"
+permissions_for_dir: "0755"
+permissions_for_file: "0754"
+soa_servertype: "not defined" 
+soa_serverlist: "not defined"
+soa_isdomain: "not defined"
+soa_deploy_filename: "not defined"
+soa_appcode: "not defined"
+soa_envcode: "not defined"
+soa_mmccode: "not defined"
+soa_authstring: "not defined"
+soa_userid: "not defined"
+soa_deploy_fileuri: "not defined"
+version: "1.0.0"
