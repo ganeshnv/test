@@ -1,0 +1,3 @@
+---
+runMWCmd:   "pbrun pbmwansb {{ mw_id }}=/hosting/bin/ansible/runMWCmd"
+run_mw_cmd: "pbrun pbmwansb {{ mw_id }}=/hosting/bin/ansible/runMWCmd"
