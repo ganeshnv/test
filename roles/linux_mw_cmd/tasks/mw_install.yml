@@ -1,0 +1,9 @@
+---
+
+#  tasks:
+- name: "MW deployment - {{ mw_install_action }}"
+  include_tasks: run_mw_cmd.yml
+  vars:
+      mw_cmd_args: "{{ mw_install_action }}_{{ item }}_{{ cell_code }}"
+  with_items:
+    - "{{ file_name }}"
