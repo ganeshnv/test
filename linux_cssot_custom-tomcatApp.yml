@@ -1,0 +1,60 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux, is_mw: "false" }
+  - { role: chkArtifactDep }
+
+  tasks:
+    - block:
+      
+      - name: Setup temp directory before deployment
+        import_role:
+          name: linuxTempDir
+
+      - name: Download artifact from Artifactory and extract in TempDir
+        import_role:
+          name: linuxDownloadAndPrep
+          ## Note: deploy_downloads_dir is assigned by linuxTemDir
+
+      - name: set permisison 755 for artifact
+        shell: "/bin/chmod -R 755 {{ deploy_downloads_dir }}"    
+
+      - name: List extracted files in TempDir
+        shell: "/bin/ls -altr {{ deploy_downloads_dir }}/*"
+        register: show_files
+
+      - name: List extracted files in TempDir
+        debug:
+          msg: "Files in TempDir: {{ show_files.stdout }}"
+          
+      - name: Print WAR Path vale of {{ dep_env }}
+        debug:
+          msg: "WAR PATH value of {{ dep_env }} is {{ war_path }}"    
+
+      - name: Stop Server
+        shell : "pbrun {{ pbgroup }} {{ serviceid }}=/hosting/bin/ansible/runMWCmd {{ deploy_downloads_dir }} {{ app }} {{ war_name }} {{ item }} stop"
+        delegate_to: "{{ inventory_hostname }}"
+        loop: "{{ war_path }}"
+        when:  dep_env.find("DEV") != -1 or dep_env.find("SIT") != -1        
+       
+      - name: Execute war file on deploy location
+        shell : "pbrun {{ pbgroup }} {{ serviceid }}=/hosting/bin/ansible/runMWCmd {{ deploy_downloads_dir }} {{ app }} {{ war_name }} {{ item }} Deploy"
+        delegate_to: "{{ inventory_hostname }}"
+        loop: "{{ war_path }}"
+        
+
+      - name: Start server
+        shell : "pbrun {{ pbgroup }} {{ serviceid }}=/hosting/bin/ansible/runMWCmd {{ deploy_downloads_dir }} {{ app }} {{ war_name }} {{ item }} start"
+        delegate_to: "{{ inventory_hostname }}"
+        loop: "{{ war_path }}"
+        when:  dep_env.find("DEV") != -1 or dep_env.find("SIT") != -1
+
+        always:
+      - name: Clean temp directory after deployment
+        import_role:
+          name: linuxMWTempDir
+          tasks_from: cleanTempDir
