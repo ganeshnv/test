@@ -1,0 +1,4 @@
+---
+- name: Windows Common
+  debug:
+    msg: "."
