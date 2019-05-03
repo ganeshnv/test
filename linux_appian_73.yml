@@ -1,0 +1,63 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_{{ server_type }}"
+  vars_files:
+    - roles/common/vars/linux_appian_common.yml
+
+  pre_tasks:
+
+  roles:
+  - { role: common, os_type: linux, is_mw: false }
+  - { role: chkArtifactDep }
+
+  tasks:
+    - block:
+      - name: Setup download temp folder
+        import_role:
+          name: linux_special_tech_temp_dir
+        tags: always
+
+      - name: Download artifact from Artifactory
+        import_role:
+          name: linuxDownload
+        tags: always
+
+      - name: Find files from the download dir
+        find:
+          paths: "{{ deploy_downloads_dir }}"
+          patterns: "*.zip"
+        register: find_files
+
+      - name: Deploy directory {{ deploy_downloads_dir }}
+        shell: "ls -lrt {{ deploy_downloads_dir }}" 
+
+      - name: Deploy patch(es)
+        shell: "{{ script }}/deploy-application.sh -application_path {{ item.path }} -url {{ url }} -username deploymentUser -password {{ password }} -uuid {{ uuid }} –import_customization_path {{customization_path}}"
+        with_items: "{{ find_files.files }}"
+        when: uuid is defined
+
+      - name: Deploy package(s)
+        shell: "{{ script }}/deploy-application.sh -application_path {{ item.path }} -url {{ url }} -username deploymentUser -password {{ password }} –import_customization_path {{customization_path}}"
+        with_items: "{{ find_files.files }}"
+        when: uuid is undefined
+
+      - name: Clean temp directory after deployment
+        import_role:
+          name: linux_special_tech_temp_dir
+          tasks_from: stageDir
+        vars:
+          stage_dir_state: absent
+        tags: always
+
+      - name: Set artifact deployed property in Artifactory
+        import_role:
+          name: setArtDepl
+        when: dep_env not in deployed
+        tags: always
+      when: dep_env not in deployed or dep_override
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
