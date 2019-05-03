@@ -1,0 +1,31 @@
+---
+- name: Set artifact URL
+  set_fact:
+    artifact_file_name: "{{ (item.split('/')[-1]).split('-')[0] }}"
+    published_artifact_url: "{{item}}"
+  with_items:
+    - "{{ publishedArtifactUrl }}"
+  when: publishedArtifactUrl is defined
+
+- name: set artifact variables
+  import_tasks: setArtProp.yml
+  tags: always
+  when: (published_artifact_url != "NON_ARTIFACT_DEPLOYMENT")
+
+- name: Set artifact name
+  set_fact:
+    artifactname: "{{ tower_job_template_name.split('_')[1] }}"
+  when: artifactname is not defined or artifactname == ""
+
+- name: set deployment variables
+  import_tasks: setDepProp.yml
+  tags: always
+  when: (celestial or celestial is not defined) and (published_artifact_url != "NON_ARTIFACT_DEPLOYMENT")
+
+- name: include tasks/linux_common.yml
+  include: linux_common.yml
+  when: ansible_system == "Linux" and is_mw is not defined
+
+- name: include tasks/win_common.yml
+  include: win_common.yml
+  when: ansible_system == "Windows"
