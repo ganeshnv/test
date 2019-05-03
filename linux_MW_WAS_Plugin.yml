@@ -1,0 +1,23 @@
+---
+- name: Deploying {{ tower_job_template_name }} Component to {{ dep_env }}
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_DM"
+  vars_files:
+    - roles/common/vars/linux_common.yml
+
+  pre_tasks:
+
+  vars:
+    - published_artifact_url: "NON_ARTIFACT_DEPLOYMENT"
+  roles:
+  - { role: common, os_type: linux }
+
+  tasks:
+    - name: WAS Generate Plugin file [ plugin-cfg.xml ]
+      import_role:
+         name: linuxMW_WAS_Plugin
+
+  post_tasks:
+    - name: Clear facts
+      import_role:
+        name: clearFacts
+      tags: always
