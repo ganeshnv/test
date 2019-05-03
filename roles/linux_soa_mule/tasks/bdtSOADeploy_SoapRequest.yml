@@ -1,0 +1,32 @@
+---
+# name: bdtSOADeploy_SoapRequest
+- name: "Encode zip file to base64 prior to SOAP call - {{soa_deploy_fileuri}}"   
+  slurp:
+    src: "{{soa_deploy_fileuri}}"
+  register: soa_b64encoded_deployfile
+  
+# Ref:  http://docs.ansible.com/ansible/uri_module.html
+- name: Deploy via Dashboard
+  uri:
+    url: "https://vanguard.servercom:8202/public/MULE/MMCAPI.svc/SOAP"
+#   url: "{{ soa_url }}"
+    method: POST
+    force_basic_auth: no
+    body: "{{lookup('template', 'bdtSOADeploy_SoapRequestTemplate.xml')}}"
+    status_code: 200
+    body_format: raw
+    follow_redirects: all
+    return_content: yes
+    timeout: 600
+    headers:
+      Content-Type: "text/xml;charset=UTF-8"
+      SOAPAction: "http://tempuri.org/IMMCAPI/Deploy"
+  register: webInfo
+- debug: var=webInfo
+  msg: "result of curl command: {{ webInfo.stdout }}"
+...
+
+- name: Fail task when curl returns FAILED
+  fail:
+    msg: "Curl command failed failed"
+  when: "'Overall Deployment Status : FAILED' in webInfo.stdout"
