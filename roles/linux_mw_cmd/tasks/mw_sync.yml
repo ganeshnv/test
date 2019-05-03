@@ -1,0 +1,5 @@
+---
+- name: MW deployment - SYNC
+  include_tasks: run_mw_cmd.yml
+  vars:
+      mw_cmd_args: "SYNC_{{ cell_code }}"
