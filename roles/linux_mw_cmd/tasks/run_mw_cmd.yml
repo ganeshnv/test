@@ -1,0 +1,11 @@
+---
+
+- name: "Run run_mw_cmd {{ mw_cmd_args }}"
+  shell: "{{ run_mw_cmd }} {{ mw_cmd_args }}"
+  register: run_mw_cmd_return
+  ignore_errors: True
+
+- name: "{{ run_mw_cmd }} {{ mw_cmd_args }} returned: {{ run_mw_cmd_return.rc }}"
+  fail:
+      msg: "{{ run_mw_cmd }} {{ mw_cmd_args }} failed. returns: {{ run_mw_cmd_return | to_nice_yaml }}"
+  when: run_mw_cmd_return.rc != 0
