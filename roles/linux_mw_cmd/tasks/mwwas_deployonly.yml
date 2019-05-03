@@ -1,0 +1,17 @@
+---
+
+- name: Websphere MW deployment - UNINSTALL
+  include_tasks: mw_install.yml
+  vars:
+    mw_install_action: UNINSTALL
+
+- name: Websphere MW deployment - INSTALL
+  include_tasks: mw_install.yml
+  vars:
+    mw_install_action: INSTALL
+
+- name: websphere MW deployment - SYNC
+  include_tasks: mw_sync.yml
+
+- name: Execute commands specified in survey variable
+  include_tasks: linux_ansible_scripts.yml
