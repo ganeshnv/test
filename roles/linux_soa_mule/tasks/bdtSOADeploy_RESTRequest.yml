@@ -1,0 +1,17 @@
+---
+# name: bdtSOADeploy_RESTRequest
+  #tasks:
+   - name: Deploy via Dashboard 
+#    shell: curl -k -X POST https://vanguard.server.com:8202/public/api/v1/mule/Deploy -H 'UserId:{{soa_userid}}' -H 'AuthString:{{soa_authstring}}' -F "MMCEnvCode={{soa_mmccode}}" -F "AppCode={{soa_appcode}}" -F "AppEnvCode={{soa_envcode}}" -F "IsDomain={{soa_isdomain}}" -F "ServerType={{soa_servertype}}" -F "ServerList={{soa_serverlist}}" -F "File=@{{soa_deploy_fileuri}}"
+#    register: curl_debug
+     shell: curl -k -X POST  "{{ soa_url }}" -H 'UserId:{{soa_userid}}' -H 'AuthString:{{soa_authstring}}' -F "MMCEnvCode={{soa_mmccode}}" -F "AppCode={{soa_appcode}}" -F "AppEnvCode={{soa_envcode}}" -F "IsDomain={{soa_isdomain}}" -F "ServerType={{soa_servertype}}" -F "ServerList={{soa_serverlist}}" -F "File=@{{soa_deploy_fileuri}}"
+     register: webInfo
+
+   - debug:
+     msg: "curl_debug: {{ curl_debug }}"
+     msg: "webInfo: {{ webInfo }}"
+
+   - name: Fail task when curl returns FAILED
+     fail:
+       msg: "Curl command failed failed"
+     when: "'Overall Deployment Status : FAILED' in webInfo.stdout"
