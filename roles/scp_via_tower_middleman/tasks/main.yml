@@ -1,0 +1,35 @@
+---
+- name: Fail if Required Variable are Missing
+  fail:
+    msg: "ER: A required variable is not defined"
+  when: ( src_host is not defined ) or
+        ( dest_host_list is not defined ) or
+        ( src_file is not defined ) or
+        ( dest_dir is not defined )
+
+- name: "Show Required Variables:"
+  debug:
+    msg: "List required variables:
+        src_host: {{ src_host | to_json }}
+        dest_host_list: {{ dest_host_list | to_json }}
+        src_file: {{ src_file }}
+        dest_dir: {{ dest_dir }}
+        scp_user: {{ scp_user }}"
+
+- name: "Check localhost hostname"
+  shell: "hostname -f"
+  delegate_to: localhost
+  register: check_localhost
+- name: "Show localhost hostname"
+  debug:
+    msg: "localhost = {{ check_localhost.stdout }}"
+
+- name: "PREVIEW SCP Command"
+  shell: "echo \"scp -3 -vv -o 'ConnectTimeout=60' -o 'StrictHostKeyChecking=no' -o 'LogLevel=error' -p {{ scp_user }}@{{ src_host[0] }}:{{ src_file }} {{ scp_user }}@{{ item }}:{{ dest_dir }}\""
+  with_items: "{{ dest_host_list | list }}"
+  delegate_to: localhost
+
+- name: "SCP {{ src_host[0] }}:{{ src_file }} to {{ dest_dir }} on hosts {{ dest_host_list | to_json }} via Tower middleman"
+  shell: "scp -3 -vv -o 'ConnectTimeout=60' -o 'StrictHostKeyChecking=no' -o 'LogLevel=error' -p {{ scp_user }}@{{ src_host[0] }}:{{ src_file }} {{ scp_user }}@{{ item }}:{{ dest_dir }}"
+  with_items: "{{ dest_host_list | list }}"
+  delegate_to: localhost
