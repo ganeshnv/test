@@ -1,0 +1,72 @@
+---
+- name: download artifact '{{ name }}' from artifactory to target server
+  get_url:
+    url: "{{ published_artifact_url }}"
+    dest: "{{ deploy_downloads_dir }}"
+    mode: "755"
+    url_username: "{{ artifactory_user }}"
+    url_password: "{{ artifactory_pwd|default('00000000') }}"
+    timeout: 30
+  retries: 5
+  delay: 5
+
+- name: Exit if check mode
+  meta: end_play
+  when: ansible_check_mode
+
+- name: Unzip if needed
+  vars:
+    file_extension: "{{ published_artifact_url.split ( '.') [ -1 ] }}"
+  unarchive:
+    src: "{{ deploy_downloads_dir }}/{{ name }}"
+    dest: "{{ deploy_downloads_dir }}"
+    copy: false
+  when: file_extension in archive_extensions
+
+- name: search file locations
+  find:
+    paths: "{{ deploy_downloads_dir }}"
+    patterns: "{{ file_patterns }}"
+    get_checksum: yes
+    recurse: true
+  run_once: true
+  register: find_file_location
+
+- name: search file names
+  set_fact:
+    file_full_name: "{{ file_full_name }} + [ '{{ item.path | basename }}' ]"
+  with_items:
+    - "{{ find_file_location.files }}"
+
+- name: find file names without extension
+  set_fact:
+    file_name: "{{ file_name }} + [ '{{ item.split('.')[0] }}' ]"
+  with_items:
+    - "{{ file_full_name }}"
+  run_once: true
+
+- name: Error out if Artifact contains Duplicate filenames where checksums are different
+  fail:
+    msg: "Artifact has multiple files called {{ item[0].path.split('/')[-1] }} with differing checksums."
+  with_nested:
+    # This loop goes though the list to find any filename Duplicates
+    # If files of same name are identical we are okay.
+    # If files of same name have different checksums then we abort.
+    # There are two of these lines on purpose!!!
+    - "{{ find_file_location.files }}" # loop1
+    - "{{ find_file_location.files }}" # loop2 for comparison
+  when:
+    - item[0].path.split('/')[-1] == item[1].path.split('/')[-1]
+    - item[0].checksum != item[1].checksum
+
+- name: Copy Artifact files to root dir of {{ deploy_downloads_dir }}/
+  copy:
+    src: "{{ item.path }}"
+    dest: "{{ deploy_downloads_dir }}"
+    remote_src: yes
+  with_items:
+    - "{{ find_file_location.files }}"
+  when: move_artifact_to_base
+
+- name: change modes of downloaded files
+  shell: "/bin/chmod -R 755 {{ deploy_downloads_dir }}/*"
