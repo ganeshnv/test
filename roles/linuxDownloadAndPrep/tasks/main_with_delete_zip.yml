@@ -1,0 +1,41 @@
+---
+- name: download artifact '{{ name }}' from artifactory to target server
+  get_url:
+    url: "{{ published_artifact_url }}"
+    dest: "{{ deploy_downloads_dir }}"
+    mode: "755"
+    url_username: "{{ artifactory_user }}"
+    url_password: "{{ artifactory_pwd|default('00000000') }}"
+    timeout: 30
+  retries: 5
+  delay: 5
+
+- name: Exit if check mode
+  meta: end_play
+  when: ansible_check_mode
+
+- name: Unzip if needed
+  vars:
+    file_extension: "{{ published_artifact_url.split ( '.') [ -1 ] }}"
+  unarchive:
+    src: "{{ deploy_downloads_dir }}/{{ name }}"
+    dest: "{{ deploy_downloads_dir }}"
+    copy: false
+  when: file_extension in archive_extensions  
+  #when: file_extension == 'zip' or
+  #      file_extension == 'tgz' or
+  #      file_extension == 'tar'
+
+- name: Remove Compressed Artifact file
+  vars:
+    file_extension: "{{ published_artifact_url.split ( '.') [ -1 ] }}"
+  file: 
+    path: "{{ deploy_downloads_dir }}/{{ name }}"
+    state: absent
+  when: file_extension in archive_extensions  
+  #when: file_extension == 'zip' or
+  #      file_extension == 'tgz' or
+  #      file_extension == 'tar'
+    
+- name: change modes of downloaded files
+  shell: "/bin/chmod -R 755 {{ deploy_downloads_dir }}/*"
