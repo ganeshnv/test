@@ -1,0 +1,10 @@
+---
+
+- name: Run runMWcmd "{{ mw_cmd_args }}"
+  shell: "{{ run_mw_cmd }} {{ mw_cmd_args }}"
+  register: run_mw_cmd_return
+
+- name: Fail task when runMWCmd returns non zero
+  fail:
+    msg: "{{ run_mw_cmd }} {{ mw_cmd_args }} failed"
+  when: run_mw_cmd_return.rc != 0
