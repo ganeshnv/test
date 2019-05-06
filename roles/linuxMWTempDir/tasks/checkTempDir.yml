@@ -1,0 +1,6 @@
+---
+- name: create temp directory '{{ deploy_downloads_dir }}' to store deployable artifacts '{{ name }}'.
+  file:
+    state: "directory"
+    mode: "2755"
+    path: "{{ deploy_downloads_dir }}"
