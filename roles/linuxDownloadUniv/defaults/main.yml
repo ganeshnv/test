@@ -1,0 +1,5 @@
+archive_extensions:
+  - "zip"
+  - "tgz"
+  - "tar"
+move_artifact_to_base: false
