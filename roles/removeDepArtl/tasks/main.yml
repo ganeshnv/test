@@ -1,0 +1,15 @@
+---
+
+- name: set deployed to new value
+  set_fact: 
+    deployed_rem: "{{ deployed | regex_replace(dep_env+'.') }}"
+
+- name: reset {{ name }} artifactory properties after uninstall
+  uri:
+    url: "{{ art_rest_api }}/{{ repo }}{{ path }}/{{ name }}?properties=deployed={{ deployed_rem }}"
+    method: PUT
+    password: "{{ artifactory_pwd|default('00000000') }}"
+    user: "{{ artifactory_user }}"
+    status_code: 200, 204
+  delegate_to: localhost
+  run_once: true
