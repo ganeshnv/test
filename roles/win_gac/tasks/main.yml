@@ -1,0 +1,61 @@
+---
+- name: find gacutil.exe
+  win_find:
+    paths: "{{ gacutil_path | default('C:\\Windows\\Microsoft.NET')}}"
+    patterns: "gacutil.exe"
+    recurse: true
+  register: gac_exe_paths
+
+
+#- block:  
+
+- name: gac_exe_info
+  debug:
+    msg : "{{ item.path }}"
+  with_items: "{{ gac_exe_paths.files }}"
+  
+  
+- name: get gac exe versions 
+  win_file_version:
+    path: "{{ item.path }}"
+  register: gac_exe_info
+  with_items: "{{ gac_exe_paths.files }}"
+  
+
+- name: initialize gac_file_version
+  set_fact:
+    gac_file_version: '0.0.0.0'
+    
+- name: set highest gac version
+  set_fact: 
+    gac_file_version: "{{ item.win_file_version.product_version }}"
+    gac_file_path: '"{{ item.win_file_version.path }}"'
+  when: item.win_file_version.product_version >= gac_file_version
+  loop: "{{ gac_exe_info.results }}"
+
+  
+- debug:
+    msg: "{{ gac_file_version }}"  
+
+- name: Fail Play if gacutil.exe is not found
+  fail:
+    msg: "gacutil.exe not found"
+  when: gac_file_path is not defined
+    
+- debug:
+    msg: "{{ gac_file_path }}"  
+    
+- name: gac dlls
+  win_command: "{{ gac_file_path }} /nologo /silent {{ item.cmd_line_params | default('/if')}} \"{{ item.path }}\""
+  register: gac_output
+  failed_when: gac_output.rc != 0
+  with_items: "{{ win_gac_vars }}"
+  when: win_gac_action == 'install'
+    
+- name: ungac dlls
+  win_command: "{{ gac_file_path }} /nologo /silent {{ item.cmd_line_params | default('/uf')}} \"{{ item.path }}\""
+  register: gac_output
+  failed_when: gac_output.rc != 0
+  with_items: "{{ win_gac_vars }}"
+  when: win_gac_action == 'uninstall'
+   
