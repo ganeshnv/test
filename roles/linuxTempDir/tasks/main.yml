@@ -1,0 +1,9 @@
+---
+- name: create temp staging directory
+  tempfile:
+    state: directory
+  register: tempfile_result
+
+- name: set temp directory
+  set_fact:
+    deploy_downloads_dir: "{{ tempfile_result.path }}"
