@@ -1,0 +1,6 @@
+---
+- name: unzip contents of the package
+  unarchive:
+    src: "{{ deploy_downloads_dir }}/{{ name }}"
+    dest: "{{ deploy_downloads_dir }}"
+    remote_src: yes
