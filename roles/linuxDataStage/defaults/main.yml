@@ -1,0 +1,13 @@
+file_extension:
+  dsx:
+    - "dsx"
+  isx:
+    - "isx"
+    - "pjb"
+    - "qjb"
+    - "sjb"
+    - "prt"
+    - "srt"
+    - "pst"
+  pkg:
+    - "pkg"
