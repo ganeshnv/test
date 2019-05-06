@@ -1,0 +1,6 @@
+---
+- name: unarchive compressed package to destination folder
+  unarchive:
+    src: "{{ src }}"
+    dest: "{{ dest }}"
+    remote_src: yes
