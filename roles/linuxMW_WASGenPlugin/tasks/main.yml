@@ -1,0 +1,8 @@
+---
+- name: Set Other Facts
+  set_fact:
+    serverType: DM
+    runMWCmd: "pbrun pbmwansb {{ mw_id }}=/hosting/bin/ansible/runMWCmd"
+
+- name: "WebSphere GenPlugin_{{ cell_code }} on DM server"
+  shell: "{{ run_mw_cmd }} GenPlugin_{{ cell_code }}"
