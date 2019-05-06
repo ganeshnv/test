@@ -1,0 +1,38 @@
+---
+- name: set facts
+  set_fact:
+    deploy_downloads_dir: "{{ temp_location }}/{{ cell_code }}"
+    run_mw_cmd: "pbrun pbmwansb {{ mw_id }}=/hosting/bin/ansible/runMWCmd"
+
+- name: Check if Temp Dir exists
+  stat:
+    path: "{{ deploy_downloads_dir }}"
+  register: TempDirStat
+
+- name: Set a flag
+  set_fact:
+    tempdircheck: "present"
+  when: TempDirStat.stat.exists
+
+- name: Fail the play
+  fail:
+    msg: "There is another deployment currently running for this environment. Please try back in a few.  If the template still fails after retrying in few minutes, verify if {{ deploy_downloads_dir }} is not cleaned by previous deployments."
+  when: TempDirStat.stat.exists
+
+- name: create deploy_dir
+  import_tasks: MWDir.yml
+  vars:
+    mw_deploy_dir_perm: CREATE_DEPLOY
+
+- name: change the permission of deploy_dir to 2777
+  import_tasks: MWDir.yml
+  vars:
+    mw_deploy_dir_perm: OPEN_DEPLOY_PERM
+
+- name: create temp folder
+  import_tasks: checkTempDir.yml
+
+- name: change the permission of deploy_dir to 2750
+  import_tasks: MWDir.yml
+  vars:
+    mw_deploy_dir_perm: CLOSE_DEPLOY_PERM
