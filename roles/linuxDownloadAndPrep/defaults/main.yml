@@ -1,0 +1,4 @@
+archive_extensions:
+  - "zip"
+  - "tgz"
+  - "tar"
