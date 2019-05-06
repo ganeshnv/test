@@ -1,0 +1,10 @@
+---
+
+- name: Copy Artifact files to root dir of {{ deploy_downloads_dir }}/
+  copy:
+    src: "{{ item.path }}"
+    dest: "{{ deploy_downloads_dir }}"
+    remote_src: yes
+  with_items:
+    - "{{ find_file_location.files }}"      
+  when: "{{  bool_move_artifact_to_base }}"
