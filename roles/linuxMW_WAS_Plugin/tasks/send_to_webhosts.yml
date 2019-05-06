@@ -1,0 +1,32 @@
+---
+- name: Set Required Variables
+  set_fact:
+    src_host: "{{ groups.get(tower_job_template_name+'_'+dep_env+'_DM') }}"
+    dest_host_list: "{{ groups.get(tower_job_template_name+'_'+dep_env+'_WebServer') }}"
+    src_file: "{{ deploy_downloads_dir }}/plugin-cfg.xml"
+    dest_dir: "{{ deploy_downloads_dir }}/"
+    scp_user: "{{ ansible_ssh_user }}"
+
+- name: "Show Required Variables:"
+  debug:
+    msg: "List required variables:
+        src_host: {{ src_host | to_json }}
+        dest_host_list: {{ dest_host_list | to_json }}
+        src_file: {{ src_file }}
+        dest_dir: {{ dest_dir }}"
+
+- name: "Distribute plugin file to Web Hosts"
+  include_role:
+    name: scp_via_tower_middleman
+  vars:
+    src_host: "{{ groups.get(tower_job_template_name+'_'+dep_env+'_DM') }}"
+    dest_host_list: "{{ groups.get(tower_job_template_name+'_'+dep_env+'_WebServer') }}"
+    src_file: "{{ deploy_downloads_dir }}/plugin-cfg.xml"
+    dest_dir: "{{ deploy_downloads_dir }}/"
+  # delegate_to: localhost
+
+- name: "Copy plugin-cfg.xml from TempDir to WAS/IHS Web Config Folder(s)"
+  shell: "{{ run_mw_cmd }} WAS_PLUGIN PUT {{ cell_code }}"
+  hosts: "{{ tower_job_template_name }}_{{ dep_env }}_WebServer"
+  vars:
+    scp_user: "{{ ansible_ssh_user }}"
