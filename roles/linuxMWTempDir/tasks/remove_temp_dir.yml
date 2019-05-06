@@ -1,0 +1,30 @@
+---
+- name: set deploy_downloads_dir for cell_code if needed
+  # otherwise use default deploy_downloads_dir
+  set_fact:
+    deploy_downloads_dir: "{{ temp_location }}/{{ cell_code }}"
+  when: cell_code is defined and temp_location is defined
+
+- name: set run_mw_cmd if needed
+  set_fact:
+    run_mw_cmd: "pbrun pbmwansb {{ mw_id }}=/hosting/bin/ansible/runMWCmd"
+  when: run_mw_cmd is not defined
+
+- name: create deploy_dir
+  import_tasks: MWDir.yml
+  vars:
+    mw_deploy_dir_perm: CREATE_DEPLOY
+
+- name: change the permission of deploy_dir to 2777
+  import_tasks: MWDir.yml
+  vars:
+    mw_deploy_dir_perm: OPEN_DEPLOY_PERM
+
+- name: clean temp folder
+  import_tasks: cleanTempDir.yml
+  when: tempdircheck != "present" or tempdircheck is not defined
+
+- name: change the permission of deploy_dir to 2750
+  import_tasks: MWDir.yml
+  vars:
+    mw_deploy_dir_perm: CLOSE_DEPLOY_PERM
