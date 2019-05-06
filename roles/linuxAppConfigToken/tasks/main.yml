@@ -1,0 +1,65 @@
+---
+- name: call rest service for application config values
+  uri:
+    url: "{{ env_rest_api }}"
+    method: POST
+    return_content: yes
+    body:
+      SPK: "{{ spk }}"
+      componentName: "{{ artifactname }}"
+      envName: "{{ dep_env }}"
+    body_format: json
+    force_basic_auth: yes
+    headers:
+      authorization: "{{ auth_api_token }}"
+      x-Origin: "{{ x_origin }}"
+  delegate_to: localhost
+  run_once: true
+  register: token
+  no_log: true
+
+- set_fact:
+    json_value: "{{ token.content|from_json }}"
+  delegate_to: localhost
+  run_once: true
+  no_log: true
+
+- name: dynamically create variables from the json properties
+  set_fact:
+    "{{ item.key }}": "{{ item.value }}"
+  with_dict: "{{ json_value.app_config[0].variables }}"
+  delegate_to: localhost
+  run_once: true
+  no_log: true
+
+- name: find application config template file(s)
+  win_find:
+    paths: "{{ tempDir }}\\{{ config_source_path|default('config') }}"
+    patterns: "*.template"
+  run_once: true
+  register: config_template
+
+- name: find application config file names
+  set_fact:
+    app_config_name: "{{ app_config_name }} + [ '{{ item.filename.split('.template')[0] }}' ]"
+  with_items:
+    - "{{ config_template.files }}"
+  run_once: true
+
+- name: copy config template to local ansible server
+  fetch:
+    validate_checksum: yes
+    src: "{{ item.path }}"
+    dest: "/var/lib/awx/projects/_{{ tower_job_template_id }}__devopsdeployment_templates/windows/config/"
+    flat: yes
+  with_items:
+    - "{{ config_template.files }}"
+  run_once: true
+
+- name: replace tokens in the config template
+  win_template:
+    src: "/var/lib/awx/projects/_{{ tower_job_template_id }}__devopsdeployment_templates/windows/config/{{ item }}.template"
+    dest: "{{ target_dir }}\\{{ item }}"
+  with_items:
+    - "{{ app_config_name }}"
+  no_log: true
