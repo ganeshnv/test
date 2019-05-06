@@ -1,0 +1,11 @@
+---
+- name: download artifact '{{ name }}' from artifactory to target server
+  get_url:
+    url: "{{ published_artifact_url }}"
+    dest: "{{ deploy_downloads_dir }}"
+    mode: "755"
+    url_username: "{{ artifactory_user }}"
+    url_password: "{{ artifactory_pwd|default('00000000') }}"
+    timeout: 30
+  retries: 5
+  delay: 5
