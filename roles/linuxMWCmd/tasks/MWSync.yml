@@ -1,0 +1,3 @@
+---
+- name: mw deployment - sync
+  shell: "{{ run_mw_cmd }} SYNC_{{ cell_code }}"
