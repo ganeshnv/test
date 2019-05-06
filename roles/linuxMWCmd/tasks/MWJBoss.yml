@@ -1,0 +1,23 @@
+---
+
+- name: jboss mw deployment - stop cluster(s)
+  import_tasks: MWCluster.yml
+  vars:
+    mw_cluster_action: STOP
+  #when: override_cluster_restart is not defined or override_cluster_restart != "true"
+  when: restart_cluster is not defined or restart_cluster != "false" 
+
+- name: jboss mw deployment - install
+  import_tasks: MWInstall.yml
+  vars:
+    mw_install_action: INSTALL
+
+- name: execute commands specified in survey variable
+  import_tasks: linuxAnsibleScripts.yml
+
+- name: jboss mw deployment - start cluster(s)
+  import_tasks: MWCluster.yml
+  vars:
+    mw_cluster_action: START
+  #when: override_cluster_restart is not defined or override_cluster_restart != "true"
+  when: restart_cluster is not defined or restart_cluster != "false"
