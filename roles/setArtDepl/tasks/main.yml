@@ -1,0 +1,11 @@
+---
+- name: set {{ name }} artifactory properties to deployed = {{ dep_env }}
+  uri:
+    url: "{{ art_rest_api }}/{{ repo }}{{ path }}/{{ name }}?properties=deployed={{ dep_env }}.{{ deployed }}"
+    method: PUT
+    password: "{{ artifactory_pwd|default('00000000') }}"
+    user: "{{ artifactory_user }}"
+    status_code: 200, 204
+    timeout: 180
+  delegate_to: localhost
+  run_once: true
