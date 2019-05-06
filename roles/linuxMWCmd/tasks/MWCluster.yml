@@ -1,0 +1,5 @@
+---
+- name: mw deployment - '{{ mw_cluster_action }}' cluster(s)
+  shell: "{{ run_mw_cmd }} {{ mw_cluster_action }}_{{ item }}"
+  with_items:
+    - "{{ cluster_name }}"
