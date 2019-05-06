@@ -1,0 +1,15 @@
+---
+- name: configure ntfs folder/file permissions for group or user
+  win_acl:
+    user: "{{ item.acl_user }}"
+    path: "{{ item.acl_path }}"
+    type: "{{ item.acl_type }}"
+    rights: "{{ item.acl_rights }}"
+    state: "{{ item.acl_state|default('present') }}"
+    inherit: "{{ item.acl_inherit|default(omit) }}"
+    propagation: "{{ item.acl_propagation|default(omit) }}"
+  with_items:
+    - "{{ win_acl_vars }}"
+  when: win_acl_vars is defined
+  register: win_permissions
+  no_log: true
