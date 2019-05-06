@@ -1,0 +1,22 @@
+---
+- name: search file locations
+  find:
+    paths: "{{ deploy_downloads_dir }}"
+    patterns: "{{ file_patterns }}"
+    get_checksum: yes
+    recurse: true
+  run_once: true
+  register: find_file_location
+
+- name: search file names
+  set_fact:
+    file_full_name: "{{ file_full_name }} + [ '{{ item.path | basename }}' ]"
+  with_items:
+    - "{{ find_file_location.files }}"
+
+- name: find file names without extension
+  set_fact:
+    file_name: "{{ file_name }} + [ '{{ item.split('.')[0] }}' ]"
+  with_items:
+    - "{{ file_full_name }}"
+  run_once: true
