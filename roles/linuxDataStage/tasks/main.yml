@@ -1,0 +1,81 @@
+---
+- name: validate project parameter
+  fail:
+    msg: "project {{ project}} is invalid"
+  when: project is not defined or project not in projects.keys()
+
+- name: validate that project is configured for deployment
+  fail:
+    msg: "project {{ project }} is not configured for deployment"
+  when: projects[ project ].owner is not defined or projects[ project ].owner ==  "?"
+
+- name: "check for files in {{ deploy_downloads_dir }}/Files to be installed on linux hosts"
+  find:
+    paths: "{{ deploy_downloads_dir }}/Files"
+    file_type: file
+    recurse: yes
+  register: find_result
+
+- debug:  
+    msg:  "no files found - linux install will be skipped"
+  when: find_result.matched == 0
+
+- name: "get artifact directory content of {{ deploy_downloads_dir }}/Files"
+  command: "ls {{ deploy_downloads_dir }}/Files"
+  register: ls_result
+  when: find_result.matched > 0
+
+- name: "verify artifact content of {{ deploy_downloads_dir }}/Files is configured for deployment"
+  fail:
+    msg: "{{ deploy_downloads_dir }}/Files/{{ item }} found and is not configured for deployment"
+  with_items:
+    - "{{ ls_result.stdout_lines }}"
+  when:
+    - find_result.matched > 0
+    - item not in linux_configs.keys()
+
+- name: "set permissions on files in {{ deploy_downloads_dir }}/Files to be installed"
+  command: 'chmod -R {{ linux_configs[ item ].chmod }} {{ deploy_downloads_dir }}/Files/{{ item }}'
+  args:
+    chdir: "{{ deploy_downloads_dir }}/Files/{{ item }}"
+  with_items:
+    - "{{ ls_result.stdout_lines }}"   
+  when: find_result.matched > 0
+
+- name: "install files from {{ deploy_downloads_dir }}/Files to configured targets"
+  command: 'scp -Brp . {{ projects[ project ].owner }}@{{ ansible_hostname }}:{{ linux_configs[ item ].target_path }}'
+  args:
+    chdir: "{{ deploy_downloads_dir }}/Files/{{ item }}"
+  with_items:
+    - "{{ ls_result.stdout_lines }}"   
+  when: find_result.matched > 0
+
+# start of datastage install
+- name: "check for files in {{ deploy_downloads_dir }}/Datastage to be installed"
+  find:
+    paths: "{{ deploy_downloads_dir }}/Datastage"
+    file_type: file
+    recurse: yes
+  register: find_result
+
+- debug:  
+    msg:  "no files found - datastage install will be skipped"
+  when: find_result.matched == 0
+
+- name: "import dsx datastage files for project {{ project }}"
+  command: "{{ DSHOME }}/../../../ASBNode/bin/DSXImportService.sh -ISAuthfile /home/dsadm3a/auth/.ishare -DSProject {{ project }} -DSXFile '{{ item.path }}' -Overwrite -OverwriteReadOnly -Verbose"
+  when: item.path.split ( "." ) [ -1 ] in file_extension.dsx 
+  with_items:
+    - "{{ find_result.files }}"
+
+- name: "import isx datastage files for project {{ project }}"
+  command: "{{ DSHOME }}/{{ ISTOOL }} import -domain {{ projects[ project ].DOMAIN }} -af {{ projects[ project ].AUTH }} -ar '{{ item.path }}' -replace -ds '{{ projects[ project ].HOST }}/{{ project }}'"
+  when: item.path.split ( "." ) [ -1 ] in file_extension.isx 
+  with_items:
+    - "{{ find_result.files }}"
+
+- name: "import pkg datastage files for project {{ project }}"
+  command: "{{ DSHOME }}/{{ ISTOOL }} deploy package -domain {{ projects[ project ].DOMAIN }} -af {{ projects[ project ].AUTH }} -lf '{{ item.path }}' -datastage '-replace {{ projects[ project ].HOST }}/{{ project }}'" 
+  when: item.path.split ( "." ) [ -1 ] in file_extension.pkg 
+  with_items:
+    - "{{ find_result.files }}"
