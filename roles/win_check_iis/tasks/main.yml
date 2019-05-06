@@ -1,0 +1,23 @@
+- name: "Check if IIS is Installed"
+  win_shell:
+    if ((Get-WindowsFeature Web-Server).InstallState -eq "Installed") {
+        Write-Host "DEVOPS IIS INSTALLED"
+    } 
+    else {
+        Write-Host "DEVOPS IIS NOT INSTALLED"
+    }
+  register: devops_win_iis_installed
+  
+- name: devops_win_iis_installed
+  debug:
+     msg: "{{ devops_win_iis_installed  }}"  
+
+- name: iis Installed true if IIS is installed
+  set_fact:
+    iis_installed: true
+  when: devops_win_iis_installed.stdout.find('DEVOPS IIS INSTALLED') != -1
+
+- name: iis Installed false if IIS is installed
+  set_fact:
+    iis_installed: false
+  when: devops_win_iis_installed.stdout.find('DEVOPS IIS NOT INSTALLED') != -1
