@@ -1,0 +1,17 @@
+---
+- name: Set Other Facts
+  set_fact:
+    serverType: DM
+      
+- name: Setup download temp folder
+  import_role:
+    name: linuxMWTempDir
+
+- name: "WebSphere GEN_PLUGIN_{{ cell_code }} on DM server"
+  shell: "{{ run_mw_cmd }} WAS_PLUGIN GEN {{ cell_code }}"
+
+- name: "Open Perms to 775 on {{ deploy_downloads_dir }}"
+  shell: "chmod 775 {{ deploy_downloads_dir }}"
+
+- name: "Copy plugin-cfg.xml to TempDir {{ deploy_downloads_dir }}"
+  shell: "{{ run_mw_cmd }} WAS_PLUGIN SAVE {{ cell_code }}"
