@@ -1,0 +1,8 @@
+---
+- name: set other facts
+  set_fact:
+    deploy_downloads_dir: "{{ temp_location }}/{{ cell_code }}"
+    run_mw_cmd: "pbrun pbmwansb {{ mw_id }}=/hosting/bin/ansible/runMWCmd"
+
+- name: "{{ actions }} webserver {{ web_server_name }}"
+  shell: "{{ run_mw_cmd }} {{ actions }}_{{ web_server_name }}"
