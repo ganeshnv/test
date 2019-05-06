@@ -1,0 +1,5 @@
+---
+- name: clean temp directory '{{ deploy_downloads_dir }}'
+  file:
+    path: "{{ deploy_downloads_dir }}"
+    state: "absent"
