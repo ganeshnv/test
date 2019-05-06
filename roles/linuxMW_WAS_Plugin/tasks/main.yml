@@ -1,0 +1,14 @@
+---
+- name: Set Other Facts
+  set_fact:
+    serverType: DM
+      
+- name: Setup download temp folder
+  import_role:
+    name: linuxMWTempDir
+
+- name: Run Gen Plugin and Copy to DM Staging
+  include_tasks: gen_plugin.yml
+
+- name: Send Plugin to WebHosts
+  include_tasks: send_to_webhosts.yml
