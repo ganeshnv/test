@@ -1,0 +1,3 @@
+---
+- name: mw run script
+  shell: "{{ run_mw_cmd }} RUN_SCRIPT"
