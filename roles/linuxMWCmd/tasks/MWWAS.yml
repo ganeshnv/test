@@ -1,0 +1,27 @@
+---
+
+- name: websphere mw deployment - stop cluster(s)
+  import_tasks: MWCluster.yml
+  vars:
+    mw_cluster_action: STOP
+
+- name: websphere mw deployment - uninstall
+  import_tasks: MWInstall.yml
+  vars:
+    mw_install_action: UNINSTALL
+
+- name: websphere mw deployment - install
+  import_tasks: MWInstall.yml
+  vars:
+    mw_install_action: INSTALL
+
+- name: websphere mw deployment - sync
+  import_tasks: MWSync.yml
+
+- name: execute commands specified in survey variable
+  import_tasks: linuxAnsibleScripts.yml
+
+- name: websphere mw deployment - start cluster(s)
+  import_tasks: MWCluster.yml
+  vars:
+    mw_cluster_action: START
