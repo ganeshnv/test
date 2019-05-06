@@ -1,0 +1,5 @@
+---
+- name: mw deployment - '{{ mw_install_action }}'
+  shell: "{{ run_mw_cmd }} {{ mw_install_action }}_{{ item }}_{{ cell_code }}"
+  with_items:
+    - "{{ file_name }}"
