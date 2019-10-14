@@ -1,6 +1,7 @@
 #!/bin/bash
 cd /opt
 wget https://uploads.zohocorp.com/Internal_Useruploads/dnd/Site24x7/o_1d2cspj6i15if1s9911b515oj1q5d1/Site24x7OnPremisePoller32.zip
+#wget https://uploads.zohocorp.com/Internal_Useruploads/dnd/Site24x7/o_1d2csl2imnc31vh11ol9vvusdi1/Site24x7OnPremisePoller64.zip
 unzip Site24x7OnPremisePoller32.zip
 cd Site24x7OnPremisePoller
 sed -i '/S24X7KEY/ c S24X7KEY=in_196bdd651e289523863f5ee9130a4058' conf/install.txt
