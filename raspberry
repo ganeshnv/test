@@ -5,4 +5,5 @@ wget https://uploads.zohocorp.com/Internal_Useruploads/dnd/Site24x7/o_1d2cspj6i1
 unzip Site24x7OnPremisePoller32.zip
 cd Site24x7OnPremisePoller
 sed -i '/S24X7KEY/ c S24X7KEY=in_196bdd651e289523863f5ee9130a4058' conf/install.txt
+#us_231c721a605035c691d4a70ef4abe593
 sh StartServer.sh &
